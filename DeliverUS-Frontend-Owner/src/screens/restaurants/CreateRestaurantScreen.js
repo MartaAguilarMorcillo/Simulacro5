@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Image, Platform, Pressable, ScrollView, StyleSheet, View, Switch } from 'react-native'
 import * as ExpoImagePicker from 'expo-image-picker'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import * as yup from 'yup'
@@ -18,8 +18,8 @@ export default function CreateRestaurantScreen ({ navigation }) {
   const [open, setOpen] = useState(false)
   const [restaurantCategories, setRestaurantCategories] = useState([])
   const [backendErrors, setBackendErrors] = useState()
-
-  const initialRestaurantValues = { name: null, description: null, address: null, postalCode: null, url: null, shippingCosts: null, email: null, phone: null, restaurantCategoryId: null }
+  // SOLUCIÓN
+  const initialRestaurantValues = { name: null, description: null, address: null, postalCode: null, url: null, shippingCosts: null, email: null, phone: null, restaurantCategoryId: null, promote: false }
   const validationSchema = yup.object().shape({
     name: yup
       .string()
@@ -53,7 +53,10 @@ export default function CreateRestaurantScreen ({ navigation }) {
       .number()
       .positive()
       .integer()
-      .required('Restaurant category is required')
+      .required('Restaurant category is required'),
+    // SOLUCIÓN
+    promote: yup
+      .boolean()
   })
 
   useEffect(() => {
@@ -178,6 +181,18 @@ export default function CreateRestaurantScreen ({ navigation }) {
               />
               <ErrorMessage name={'restaurantCategoryId'} render={msg => <TextError>{msg}</TextError> }/>
 
+              <TextRegular>Is it promoted?</TextRegular>
+              <Switch
+              // SOLUCIÓN
+                trackColor={{ false: GlobalStyles.brandSecondary, true: GlobalStyles.brandPrimary }}
+                thumbColor={values.promote ? GlobalStyles.brandSecondary : '#f4f3f4'}
+                value={values.promote}
+                style={styles.switch}
+                onValueChange={value =>
+                  setFieldValue('promote', value)
+                }
+              />
+
               <Pressable onPress={() =>
                 pickImage(
                   async result => {
@@ -259,6 +274,10 @@ const styles = StyleSheet.create({
     height: 100,
     borderWidth: 1,
     alignSelf: 'center',
+    marginTop: 5
+  },
+  // SOLUCIÓN
+  switch: {
     marginTop: 5
   }
 })

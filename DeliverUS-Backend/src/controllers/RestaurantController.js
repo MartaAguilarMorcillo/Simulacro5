@@ -1,4 +1,4 @@
-import { Restaurant, Product, RestaurantCategory, ProductCategory } from '../models/models.js'
+import { Restaurant, Product, RestaurantCategory, ProductCategory, sequelizeSession } from '../models/models.js'
 
 const index = async function (req, res) {
   try {
@@ -10,7 +10,8 @@ const index = async function (req, res) {
         model: RestaurantCategory,
         as: 'restaurantCategory'
       },
-        order: [[{ model: RestaurantCategory, as: 'restaurantCategory' }, 'name', 'ASC']]
+        // SOLUCIÓN
+        order: [['promote', 'DESC'], [{ model: RestaurantCategory, as: 'restaurantCategory' }, 'name', 'ASC']]
       }
     )
     res.json(restaurants)
@@ -28,7 +29,9 @@ const indexOwner = async function (req, res) {
         include: [{
           model: RestaurantCategory,
           as: 'restaurantCategory'
-        }]
+        }],
+        // SOLUCIÓN
+        order: [['promote', 'DESC']]
       })
     res.json(restaurants)
   } catch (err) {
@@ -95,12 +98,47 @@ const destroy = async function (req, res) {
   }
 }
 
+// SOLUCIÓN
+// El id de un restaurante que ya he buscado es nombreRestaurante.id
+// Actualizar una propiedad es con un {propiedad: valor} antes del where
+// Ejemplo de transacción
+const promoteRestaurant = async function (req, res) {
+  const t = await sequelizeSession.transaction()
+  try {
+    const restaurantPromoted = await Restaurant.findOne({
+      where: {
+        userId: req.user.id,
+        promote: true
+      }
+    })
+    if (restaurantPromoted !== null) {
+      await Restaurant.update(
+        { promote: false },
+        { where: { id: restaurantPromoted.id } },
+        { transaction: t }
+      )
+    }
+    await Restaurant.update(
+      { promote: true },
+      { where: { id: req.params.restaurantId } },
+      { transaction: t }
+    )
+    await t.commit()
+    const newRestaurantPromoted = await Restaurant.findByPk(req.params.restaurantId)
+    res.json(newRestaurantPromoted)
+  } catch (err) {
+    await t.rollback()
+    res.status(500).send(err)
+  }
+}
+
 const RestaurantController = {
   index,
   indexOwner,
   create,
   show,
   update,
-  destroy
+  destroy,
+  promoteRestaurant
 }
 export default RestaurantController

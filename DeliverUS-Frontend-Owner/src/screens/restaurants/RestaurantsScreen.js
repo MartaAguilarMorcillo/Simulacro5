@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { StyleSheet, FlatList, Pressable, View } from 'react-native'
 
-import { getAll, remove } from '../../api/RestaurantEndpoints'
+import { getAll, remove, promoteRestaurant } from '../../api/RestaurantEndpoints'
 import ImageCard from '../../components/ImageCard'
 import TextSemiBold from '../../components/TextSemibold'
 import TextRegular from '../../components/TextRegular'
@@ -11,12 +11,15 @@ import * as GlobalStyles from '../../styles/GlobalStyles'
 import { AuthorizationContext } from '../../context/AuthorizationContext'
 import { showMessage } from 'react-native-flash-message'
 import DeleteModal from '../../components/DeleteModal'
+import ConfirmModal from '../../components/ConfirmModal'
 import restaurantLogo from '../../../assets/restaurantLogo.jpeg'
 
 export default function RestaurantsScreen ({ navigation, route }) {
   const [restaurants, setRestaurants] = useState([])
   const [restaurantToBeDeleted, setRestaurantToBeDeleted] = useState(null)
   const { loggedInUser } = useContext(AuthorizationContext)
+  // SOLUCIÓN
+  const [restaurantToBePromoted, setRestaurantToBePromoted] = useState(null)
 
   useEffect(() => {
     if (loggedInUser) {
@@ -39,7 +42,16 @@ export default function RestaurantsScreen ({ navigation, route }) {
         {item.averageServiceMinutes !== null &&
           <TextSemiBold>Avg. service time: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.averageServiceMinutes} min.</TextSemiBold></TextSemiBold>
         }
-        <TextSemiBold>Shipping: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.shippingCosts.toFixed(2)}€</TextSemiBold></TextSemiBold>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }} >
+          <TextSemiBold>Shipping: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.shippingCosts.toFixed(2)}€</TextSemiBold></TextSemiBold>
+        {item.promote &&
+          <TextRegular textStyle={[styles.promotion, { color: GlobalStyles.brandPrimary, borderColor: GlobalStyles.brandSuccess }]}>
+          ¡En promoción!
+          </TextRegular>
+          // SOLUCIÓN
+          // Para poner dos frases en la misma línea y una de ellas con un borde
+        }
+         </View>
         <View style={styles.actionButtonsContainer}>
           <Pressable
             onPress={() => navigation.navigate('EditRestaurantScreen', { id: item.id })
@@ -74,6 +86,25 @@ export default function RestaurantsScreen ({ navigation, route }) {
             <MaterialCommunityIcons name='delete' color={'white'} size={20}/>
             <TextRegular textStyle={styles.text}>
               Delete
+            </TextRegular>
+          </View>
+        </Pressable>
+
+        <Pressable
+        // SOLUCIÓN
+            onPress={() => { setRestaurantToBePromoted(item) }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed
+                  ? GlobalStyles.brandSuccessTap
+                  : GlobalStyles.brandSuccess
+              },
+              styles.actionButton
+            ]}>
+          <View style={[{ flex: 1, flexDirection: 'row', justifyContent: 'center' }]}>
+            <MaterialCommunityIcons name='octagram' color={'white'} size={20}/>
+            <TextRegular textStyle={styles.text}>
+              Promote
             </TextRegular>
           </View>
         </Pressable>
@@ -153,6 +184,30 @@ export default function RestaurantsScreen ({ navigation, route }) {
     }
   }
 
+  // SOLUCIÓN
+  const restaurantPromote = async (restaurant) => {
+    try {
+      await promoteRestaurant(restaurant.id)
+      await fetchRestaurants()
+      setRestaurantToBePromoted(null)
+      showMessage({
+        message: `Restaurant ${restaurant.name} succesfully promoted`,
+        type: 'success',
+        style: GlobalStyles.flashStyle,
+        titleStyle: GlobalStyles.flashTextStyle
+      })
+    } catch (error) {
+      console.log(error)
+      setRestaurantToBePromoted(null)
+      showMessage({
+        message: `Restaurant ${restaurant.name} could not be promoted.`,
+        type: 'error',
+        style: GlobalStyles.flashStyle,
+        titleStyle: GlobalStyles.flashTextStyle
+      })
+    }
+  }
+
   return (
     <>
     <FlatList
@@ -170,6 +225,12 @@ export default function RestaurantsScreen ({ navigation, route }) {
         <TextRegular>The products of this restaurant will be deleted as well</TextRegular>
         <TextRegular>If the restaurant has orders, it cannot be deleted.</TextRegular>
     </DeleteModal>
+    <ConfirmModal
+      isVisible={restaurantToBePromoted !== null}
+      onCancel={() => setRestaurantToBePromoted(null)}
+      onConfirm={() => restaurantPromote(restaurantToBePromoted)}>
+        <TextRegular>Other promoted restaurant, if any, will be unpromoted</TextRegular>
+    </ConfirmModal>
     </>
   )
 }
@@ -187,6 +248,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '80%'
   },
+  // SOLUCIÓN
   actionButton: {
     borderRadius: 8,
     height: 40,
@@ -195,13 +257,13 @@ const styles = StyleSheet.create({
     padding: 10,
     alignSelf: 'center',
     flexDirection: 'column',
-    width: '50%'
+    width: '33%'
   },
   actionButtonsContainer: {
     flexDirection: 'row',
     bottom: 5,
-    position: 'absolute',
-    width: '90%'
+    position: 'relative',
+    width: '95%'
   },
   text: {
     fontSize: 16,
@@ -212,5 +274,12 @@ const styles = StyleSheet.create({
   emptyList: {
     textAlign: 'center',
     padding: 50
+  },
+  // SOLUCIÓN
+  promotion: {
+    textAlign: 'center',
+    borderWidth: 2,
+    paddingHorizontal: 10,
+    borderRadius: 10
   }
 })
